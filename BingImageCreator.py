@@ -74,8 +74,8 @@ class ImageGen:
         self.session.headers = HEADERS
         self.session.cookies.set("_U", auth_cookie)
         self.session.cookies.set("SRCHHPGUSR", auth_cookie_SRCHHPGUSR)
-        proxy = {"http": "http://127.0.0.1:7890", "https": "https://127.0.0.1:7890"}
-        self.session.proxies = proxy
+        # proxy = {"http": "http://127.0.0.1:7890", "https": "https://127.0.0.1:7890"}
+        # self.session.proxies = proxy
         if all_cookies:
             for cookie in all_cookies:
                 self.session.cookies.set(cookie["name"], cookie["value"])
