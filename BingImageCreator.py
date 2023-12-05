@@ -43,12 +43,6 @@ wait_message = "Waiting for results..."
 download_message = "\nDownloading images..."
 
 
-def debug(debug_file, text_var):
-    """helper function for debug"""
-    with open(f"{debug_file}", "a", encoding="utf-8") as f:
-        f.write(str(text_var))
-        f.write("\n")
-
 
 class ImageGen:
     """
@@ -56,33 +50,22 @@ class ImageGen:
     Parameters:
         auth_cookie: str
         auth_cookie_SRCHHPGUSR: str
-    Optional Parameters:
-        debug_file: str
-        quiet: bool
-        all_cookies: List[Dict]
     """
 
     def __init__(
         self,
         auth_cookie: str,
         auth_cookie_SRCHHPGUSR: str,
-        debug_file: Union[str, None] = None,
-        quiet: bool = False,
-        all_cookies: List[Dict] = None,
+        proxy=None,
     ) -> None:
         self.session: requests.Session = requests.Session()
         self.session.headers = HEADERS
         self.session.cookies.set("_U", auth_cookie)
         self.session.cookies.set("SRCHHPGUSR", auth_cookie_SRCHHPGUSR)
+        if proxy is not None:
+            self.session.proxies = proxy
         # proxy = {"http": "http://127.0.0.1:7890", "https": "https://127.0.0.1:7890"}
         # self.session.proxies = proxy
-        if all_cookies:
-            for cookie in all_cookies:
-                self.session.cookies.set(cookie["name"], cookie["value"])
-        self.quiet = quiet
-        self.debug_file = debug_file
-        if self.debug_file:
-            self.debug = partial(debug, self.debug_file)
 
     def get_images(self, prompt: str) -> list:
         """
@@ -90,10 +73,8 @@ class ImageGen:
         Parameters:
             prompt: str
         """
-        if not self.quiet:
-            print(sending_message)
-        if self.debug_file:
-            self.debug(sending_message)
+        
+        print(sending_message)
         url_encoded_prompt = requests.utils.quote(prompt)
         payload = f"q={url_encoded_prompt}&qs=ds"
         # https://www.bing.com/images/create?q=<PROMPT>&rt=3&FORM=GENCRE
@@ -106,14 +87,10 @@ class ImageGen:
         )
         # check for content waring message
         if "this prompt is being reviewed" in response.text.lower():
-            if self.debug_file:
-                self.debug(f"ERROR: {error_being_reviewed_prompt}")
             raise Exception(
                 error_being_reviewed_prompt,
             )
         if "this prompt has been blocked" in response.text.lower():
-            if self.debug_file:
-                self.debug(f"ERROR: {error_blocked_prompt}")
             raise Exception(
                 error_blocked_prompt,
             )
@@ -121,16 +98,12 @@ class ImageGen:
             "we're working hard to offer image creator in more languages"
             in response.text.lower()
         ):
-            if self.debug_file:
-                self.debug(f"ERROR: {error_unsupported_lang}")
             raise Exception(error_unsupported_lang)
         if response.status_code != 302:
             # if rt4 fails, try rt3
             url = f"{BING_URL}/images/create?q={url_encoded_prompt}&rt=3&FORM=GENCRE"
             response = self.session.post(url, allow_redirects=False, timeout=200)
             if response.status_code != 302:
-                if self.debug_file:
-                    self.debug(f"ERROR: {error_redirect}")
                 print(f"ERROR: {response.text}")
                 raise Exception(error_redirect)
         # Get redirect URL
@@ -140,22 +113,14 @@ class ImageGen:
         # https://www.bing.com/images/create/async/results/{ID}?q={PROMPT}
         polling_url = f"{BING_URL}/images/create/async/results/{request_id}?q={url_encoded_prompt}"
         # Poll for results
-        if self.debug_file:
-            self.debug("Polling and waiting for result")
-        if not self.quiet:
-            print("Waiting for results...")
+        print("Waiting for results...")
         start_wait = time.time()
         while True:
             if int(time.time() - start_wait) > 200:
-                if self.debug_file:
-                    self.debug(f"ERROR: {error_timeout}")
                 raise Exception(error_timeout)
-            if not self.quiet:
-                print(".", end="", flush=True)
+            print(".", end="", flush=True)
             response = self.session.get(polling_url)
             if response.status_code != 200:
-                if self.debug_file:
-                    self.debug(f"ERROR: {error_noresults}")
                 raise Exception(error_noresults)
             if not response.text or response.text.find("errorMessage") != -1:
                 time.sleep(1)
@@ -185,7 +150,7 @@ class ImageGen:
     def save_images(
         self,
         links: list,
-        output_dir: str,
+        output_dir: str = "out",
         file_name: str = None,
         download_count: int = None,
     ) -> None:
@@ -197,10 +162,7 @@ class ImageGen:
             file_name: str
             download_count: int
         """
-        if self.debug_file:
-            self.debug(download_message)
-        if not self.quiet:
-            print(download_message)
+        print(download_message)
         with contextlib.suppress(FileExistsError):
             os.mkdir(output_dir)
         try:
@@ -229,6 +191,3 @@ class ImageGen:
             raise Exception(
                 "Inappropriate contents found in the generated images. Please try again or try another prompt.",
             ) from url_exception
-
-
-
