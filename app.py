@@ -5,7 +5,7 @@ from BingImageCreator import ImageGen
 app = Flask(__name__)
 
 
-@app.route("/get-images", methods=["GET"])
+@app.route("/gen_image", methods=["GET"])
 def get_images():
     response = {"err": "0", "data": []}
     try:
@@ -28,4 +28,4 @@ def get_images():
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=os.getenv("PORT", default=5000), host="0.0.0.0")
+    app.run(debug=True, port=os.getenv("PORT", default=1236), host="0.0.0.0")
